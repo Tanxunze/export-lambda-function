@@ -13,7 +13,7 @@ public class ExportService {
         try {
             // Simulate long-running task - the original 10-second processing from Spring Boot
             logger.info("Executing export task... JobId: {}", jobId);
-            Thread.sleep(10000); // 10 seconds to simulate data export
+            Thread.sleep(10000);
 
             logger.info("Export task completed - JobId: {}", jobId);
             return "Export completed successfully for job: " + jobId;
@@ -39,7 +39,7 @@ public class ExportService {
             return false;
         }
 
-        // Currently only support export type tasks
+        // Currently only support export type tasks because lab sheet only need it
         if (!"export".equals(taskType)) {
             logger.error("Unsupported task type: {}", taskType);
             return false;
