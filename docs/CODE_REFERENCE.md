@@ -1,15 +1,27 @@
-# Step 3 - Lambda Function Code Reference
+# Lambda Function Code Reference
 
-This document contains all the code needed for Step 3 of the lab.
+This document contains all the code needed for Step 3 and Step 4 of the lab.
 
 ## Table of Contents
-- [Project Setup](#project-setup)
-- [ExportJobMessage.java](#exportjobmessagejava)
-- [ExportService.java](#exportservicejava)
-- [ExportHandler.java](#exporthandlerjava)
-- [pom.xml](#pomxml)
+- [Step 3: Lambda Function Implementation](#step-3-lambda-function-implementation)
+  - [Project Setup](#project-setup)
+  - [ExportJobMessage.java](#exportjobmessagejava)
+  - [ExportService.java](#exportservicejava)
+  - [ExportHandler.java (Step 3)](#exporthandlerjava-step-3)
+  - [pom.xml](#pomxml)
+  - [Building and Deployment](#building-and-deployment)
+  - [Testing](#testing)
+- [Step 4: DynamoDB Integration](#step-4-dynamodb-integration)
+  - [Additional Imports](#additional-imports)
+  - [Additional Fields and Constants](#additional-fields-and-constants)
+  - [Modified Constructor](#modified-constructor)
+  - [Modified processMessage Method](#modified-processmessage-method)
+  - [New updateJobStatus Method](#new-updatejobstatus-method)
+  - [IAM Permissions Required](#iam-permissions-required)
 
 ---
+
+# Step 3: Lambda Function Implementation
 
 ## Project Setup
 
@@ -182,7 +194,7 @@ public class ExportService {
 
 ---
 
-## ExportHandler.java
+## ExportHandler.java (Step 3)
 
 **Location:** `src/main/java/ie/ul/csis/lambda/ExportHandler.java`
 
@@ -407,18 +419,13 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
 - **aws-lambda-java-core**: Required for Lambda function interface
 - **aws-lambda-java-events**: Provides SQSEvent class
 - **jackson-databind**: JSON parsing library
-- **dynamodb**: AWS SDK for DynamoDB (Step 4)
+- **dynamodb**: AWS SDK for DynamoDB (used in Step 4)
 - **slf4j-simple**: Logging implementation
 
 **Maven Shade Plugin:**
 - Creates a "fat JAR" (uber JAR) with all dependencies
 - Required for Lambda deployment
 - Output: `target/export-lambda-function-1.0.0.jar`
-
-**Build command:**
-```bash
-mvn clean package
-```
 
 ---
 
@@ -468,7 +475,7 @@ Send this JSON to SQS queue:
 }
 ```
 
-### Expected CloudWatch Logs
+### Expected CloudWatch Logs (Step 3)
 
 ```
 START RequestId: abc-123-def
@@ -511,6 +518,188 @@ Task timed out after 3.00 seconds
 
 ---
 
-## Next Steps
+# Step 4: DynamoDB Integration
 
-After completing Step 3, proceed to Step 4 to add DynamoDB integration for job status tracking.
+This section describes the modifications needed to integrate DynamoDB status tracking into the Lambda function from Step 3.
+
+## Additional Imports
+
+Add these imports to the top of `ExportHandler.java`:
+
+```java
+// Step 4: Added DynamoDB imports
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+
+import java.util.HashMap;
+import java.util.Map;
+```
+
+---
+
+## Additional Fields and Constants
+
+Add these fields and constants to the `ExportHandler` class:
+
+```java
+public class ExportHandler implements RequestHandler<SQSEvent, String> {
+
+    private static final Logger logger = LoggerFactory.getLogger(ExportHandler.class);
+    private final ExportService exportService;
+    private final ObjectMapper objectMapper;
+    
+    // Step 4: Added DynamoDB client and table configuration
+    private final DynamoDbClient dynamoDbClient;
+    private static final String TABLE_NAME = "JobTable";
+    private static final String PRIMARY_KEY = "jobId";
+    
+    // ... rest of class
+}
+```
+
+**Key Points:**
+- `dynamoDbClient`: Client for connecting to DynamoDB
+- `TABLE_NAME`: Name of the DynamoDB table (must match Step 2)
+- `PRIMARY_KEY`: Primary key field name in DynamoDB table
+
+---
+
+## Modified Constructor
+
+Replace the existing `ExportHandler()` constructor with:
+
+```java
+// Constructor for Lambda runtime
+public ExportHandler() {
+    this.exportService = new ExportService();
+    this.objectMapper = new ObjectMapper();
+    
+    // Step 4: Initialize DynamoDB client
+    this.dynamoDbClient = DynamoDbClient.builder()
+            .region(Region.EU_NORTH_1)
+            .build();
+}
+```
+
+**Key Points:**
+- Initializes DynamoDB client with EU_NORTH_1 region
+- Client is created once per Lambda container (reused across invocations)
+- No credentials needed - Lambda execution role provides authentication
+
+**Also update the testing constructor:**
+
+```java
+// Constructor for testing
+public ExportHandler(ExportService exportService) {
+    this.exportService = exportService;
+    this.objectMapper = new ObjectMapper();
+    
+    // Step 4: Initialize DynamoDB client for testing
+    this.dynamoDbClient = DynamoDbClient.builder()
+            .region(Region.EU_NORTH_1)
+            .build();
+}
+```
+
+---
+
+## Modified processMessage Method
+
+Replace the existing `processMessage()` method with:
+
+```java
+private void processMessage(SQSEvent.SQSMessage message) throws Exception {
+    String messageBody = message.getBody();
+    logger.info("Message body: {}", messageBody);
+
+    // Parse the JSON message into our model object
+    ExportJobMessage jobMessage;
+    try {
+        jobMessage = objectMapper.readValue(messageBody, ExportJobMessage.class);
+        logger.info("Parsed job message: {}", jobMessage);
+    } catch (Exception e) {
+        logger.error("Failed to parse message body as JSON: {}", messageBody);
+        throw new RuntimeException("Invalid message format", e);
+    }
+
+    // Validate the message content
+    if (!exportService.validateTaskParameters(jobMessage.getJobId(), jobMessage.getTaskType())) {
+        throw new RuntimeException("Invalid task parameters in message");
+    }
+
+    // Process the export task
+    String result = exportService.processExportTask(
+            jobMessage.getJobId(),
+            jobMessage.getTaskType()
+    );
+    logger.info("Task result: {}", result);
+
+    // Step 4: Update job status to Completed in DynamoDB
+    updateJobStatus(jobMessage.getJobId(), "Completed");
+}
+```
+
+**What changed:**
+- Added call to `updateJobStatus()` at the end
+- This updates DynamoDB status to "Completed" after successful task execution
+
+---
+
+## New updateJobStatus Method
+
+Add this new method to the `ExportHandler` class:
+
+```java
+// Step 4: Method to update job status in DynamoDB
+private void updateJobStatus(String jobId, String status) {
+    logger.info("Updating job {} status to {}", jobId, status);
+    
+    Map<String, AttributeValue> key = new HashMap<>();
+    key.put(PRIMARY_KEY, AttributeValue.builder().s(jobId).build());
+
+    Map<String, AttributeValue> expressionValues = new HashMap<>();
+    expressionValues.put(":status", AttributeValue.builder().s(status).build());
+
+    UpdateItemRequest updateRequest = UpdateItemRequest.builder()
+            .tableName(TABLE_NAME)
+            .key(key)
+            .updateExpression("SET #status = :status")
+            .expressionAttributeNames(Map.of("#status", "status"))
+            .expressionAttributeValues(expressionValues)
+            .build();
+
+    dynamoDbClient.updateItem(updateRequest);
+    logger.info("Job {} status updated successfully.", jobId);
+}
+```
+
+**How it works:**
+1. Creates a key map with the jobId (primary key)
+2. Creates expression values map with the new status
+3. Builds an UpdateItemRequest with:
+   - Table name
+   - Primary key to identify the item
+   - Update expression to set status field
+   - Expression attribute names (to avoid reserved word conflicts)
+   - Expression attribute values
+4. Executes the update operation
+5. Logs success
+
+**Key Points:**
+- Uses `#status` as placeholder for field name (DynamoDB reserved word handling)
+- Uses `:status` as placeholder for the value
+- Updates only the `status` field, leaves other fields unchanged
+
+---
+
+## Rebuild and Redeploy
+
+After making Step 4 changes:
+
+```bash
+mvn clean package
+```
+
+Upload the new JAR to Lambda, then configure IAM permissions before testing.

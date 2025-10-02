@@ -8,8 +8,12 @@ import ie.ul.csis.lambda.service.ExportService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-// AWS Lambda function handler for processing export tasks from SQS messages
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ExportHandler implements RequestHandler<SQSEvent, String> {
 
@@ -17,16 +21,25 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
     private final ExportService exportService;
     private final ObjectMapper objectMapper;
 
-    // Constructor for Lambda runtime
+    private final DynamoDbClient dynamoDbClient;
+    private static final String TABLE_NAME = "JobTable";
+    private static final String PRIMARY_KEY = "jobId";
+
     public ExportHandler() {
         this.exportService = new ExportService();
         this.objectMapper = new ObjectMapper();
+        this.dynamoDbClient = DynamoDbClient.builder()
+                .region(Region.EU_NORTH_1)
+                .build();
     }
 
     // Constructor for testing
     public ExportHandler(ExportService exportService) {
         this.exportService = exportService;
         this.objectMapper = new ObjectMapper();
+        this.dynamoDbClient = DynamoDbClient.builder()
+                .region(Region.EU_NORTH_1)
+                .build();
     }
 
     @Override
@@ -49,9 +62,6 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
                 failureCount++;
                 logger.error("Failed to process message ID: {}, Error: {}",
                         message.getMessageId(), e.getMessage(), e);
-
-                // In production, you might want to send failed messages to a DLQ
-                // For this lab, we'll just log the error and continue
             }
         }
 
@@ -85,7 +95,30 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
                 jobMessage.getJobId(),
                 jobMessage.getTaskType()
         );
+        logger.info("Task result: {}", result);
 
-        logger.info("Task processing result: {}", result);
+        updateJobStatus(jobMessage.getJobId(), "Completed");
+    }
+
+    // update job status in DynamoDB
+    private void updateJobStatus(String jobId, String status) {
+        logger.info("Updating job {} status to {}", jobId, status);
+        
+        Map<String, AttributeValue> key = new HashMap<>();
+        key.put(PRIMARY_KEY, AttributeValue.builder().s(jobId).build());
+
+        Map<String, AttributeValue> expressionValues = new HashMap<>();
+        expressionValues.put(":status", AttributeValue.builder().s(status).build());
+
+        UpdateItemRequest updateRequest = UpdateItemRequest.builder()
+                .tableName(TABLE_NAME)
+                .key(key)
+                .updateExpression("SET #status = :status")
+                .expressionAttributeNames(Map.of("#status", "status"))
+                .expressionAttributeValues(expressionValues)
+                .build();
+
+        dynamoDbClient.updateItem(updateRequest);
+        logger.info("Job {} status updated successfully.", jobId);
     }
 }
