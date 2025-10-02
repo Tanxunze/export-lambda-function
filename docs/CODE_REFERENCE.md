@@ -16,6 +16,7 @@ This document contains all the code needed for Step 3 and Step 4 of the lab.
   - [Additional Fields and Constants](#additional-fields-and-constants)
   - [Modified Constructor](#modified-constructor)
   - [Modified processMessage Method](#modified-processmessage-method)
+  - [Modified handleRequest Method](#modified-handlerequest-method)
   - [New updateJobStatus Method](#new-updatejobstatus-method)
 
 ---
