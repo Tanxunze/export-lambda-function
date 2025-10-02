@@ -17,7 +17,6 @@ This document contains all the code needed for Step 3 and Step 4 of the lab.
   - [Modified Constructor](#modified-constructor)
   - [Modified processMessage Method](#modified-processmessage-method)
   - [New updateJobStatus Method](#new-updatejobstatus-method)
-  - [IAM Permissions Required](#iam-permissions-required)
 
 ---
 
