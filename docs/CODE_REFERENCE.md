@@ -646,6 +646,43 @@ private void processMessage(SQSEvent.SQSMessage message) throws Exception {
 
 ---
 
+## Modified handleRequest Method
+
+```java
+@Override
+    public String handleRequest(SQSEvent event, Context context) {
+        logger.info("Lambda function started. Request ID: {}", context.getAwsRequestId());
+        logger.info("Received SQS event with {} messages", event.getRecords().size());
+
+        int successCount = 0;
+        int failureCount = 0;
+
+        // Process each SQS message
+        for (SQSEvent.SQSMessage message : event.getRecords()) {
+            try {
+                logger.info("Processing message ID: {}", message.getMessageId());
+                processMessage(message);
+                successCount++;
+                logger.info("Message processed successfully: {}", message.getMessageId());
+
+            } catch (Exception e) {
+                failureCount++;
+                logger.error("Failed to process message ID: {}, Error: {}",
+                        message.getMessageId(), e.getMessage(), e);
+            }
+        }
+
+        String result = String.format("Processing completed. Success: %d, Failures: %d",
+                successCount, failureCount);
+        logger.info(result);
+        return result;
+    }
+```
+
+
+
+---
+
 ## New updateJobStatus Method
 
 Add this new method to the `ExportHandler` class:
