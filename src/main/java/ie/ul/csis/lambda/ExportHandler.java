@@ -22,14 +22,15 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
     private final ObjectMapper objectMapper;
 
     private final DynamoDbClient dynamoDbClient;
-    private static final String TABLE_NAME = "JobTable";
-    private static final String PRIMARY_KEY = "jobId";
+    private static final String TABLE_NAME = System.getenv("DYNAMODB_TABLE_NAME");
+    private static final String PRIMARY_KEY = System.getenv().getOrDefault("PRIMARY_KEY", "jobId");
+    private static final String AWS_REGION = System.getenv().getOrDefault("AWS_REGION", "eu-north-1");
 
     public ExportHandler() {
         this.exportService = new ExportService();
         this.objectMapper = new ObjectMapper();
         this.dynamoDbClient = DynamoDbClient.builder()
-                .region(Region.EU_NORTH_1)
+                .region(Region.of(AWS_REGION))
                 .build();
     }
 
@@ -38,7 +39,7 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
         this.exportService = exportService;
         this.objectMapper = new ObjectMapper();
         this.dynamoDbClient = DynamoDbClient.builder()
-                .region(Region.EU_NORTH_1)
+                .region(Region.of(AWS_REGION))
                 .build();
     }
 
