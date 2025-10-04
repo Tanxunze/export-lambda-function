@@ -18,6 +18,7 @@ This document contains all the code needed for Step 3 and Step 4 of the lab.
   - [Modified processMessage Method](#modified-processmessage-method)
   - [Modified handleRequest Method](#modified-handlerequest-method)
   - [New updateJobStatus Method](#new-updatejobstatus-method)
+  - [Environment Variables Configuration](#environment-variables-configuration)
 
 ---
 
@@ -149,7 +150,7 @@ public class ExportService {
         try {
             // Simulate long-running task - the original 10-second processing from Spring Boot
             logger.info("Executing export task... JobId: {}", jobId);
-            Thread.sleep(10000); // 10 seconds to simulate data export
+            Thread.sleep(10000);
 
             logger.info("Export task completed - JobId: {}", jobId);
             return "Export completed successfully for job: " + jobId;
@@ -175,7 +176,7 @@ public class ExportService {
             return false;
         }
 
-        // Currently only support export type tasks
+        // Currently only support export type tasks because lab sheet only need it
         if (!"export".equals(taskType)) {
             logger.error("Unsupported task type: {}", taskType);
             return false;
@@ -218,7 +219,6 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
     private final ExportService exportService;
     private final ObjectMapper objectMapper;
 
-    // Constructor for Lambda runtime
     public ExportHandler() {
         this.exportService = new ExportService();
         this.objectMapper = new ObjectMapper();
@@ -250,9 +250,6 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
                 failureCount++;
                 logger.error("Failed to process message ID: {}, Error: {}",
                         message.getMessageId(), e.getMessage(), e);
-
-                // In production, you might want to send failed messages to a DLQ
-                // For this lab, we'll just log the error and continue
             }
         }
 
@@ -287,7 +284,7 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
                 jobMessage.getTaskType()
         );
 
-        logger.info("Task processing result: {}", result);
+        logger.info("Task result: {}", result);
     }
 }
 ```
@@ -319,99 +316,99 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.example</groupId>
-    <artifactId>export-lambda-function</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
+  <groupId>com.example</groupId>
+  <artifactId>export-lambda-function</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
 
-    <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+  <properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-lambda-java-core</artifactId>
-            <version>1.4.0</version>
-        </dependency>
+  <dependencies>
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-lambda-java-core</artifactId>
+      <version>1.4.0</version>
+    </dependency>
 
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-lambda-java-events</artifactId>
-            <version>3.16.0</version>
-        </dependency>
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-lambda-java-events</artifactId>
+      <version>3.16.0</version>
+    </dependency>
 
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>dynamodb</artifactId>
-            <version>2.34.1</version>
-        </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>dynamodb</artifactId>
+      <version>2.34.1</version>
+    </dependency>
 
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.20.0</version>
-        </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.20.0</version>
+    </dependency>
 
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>2.0.17</version>
-        </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>2.0.17</version>
+    </dependency>
 
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>5.13.4</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.13.4</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-                <configuration>
-                    <source>21</source>
-                    <target>21</target>
-                </configuration>
-            </plugin>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+          <source>21</source>
+          <target>21</target>
+        </configuration>
+      </plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.4.1</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>ie.ul.csis.lambda.ExportHandler</mainClass>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.4.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>ie.ul.csis.lambda.ExportHandler</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.1.2</version>
-            </plugin>
-        </plugins>
-    </build>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.1.2</version>
+      </plugin>
+    </plugins>
+  </build>
 </project>
 ```
 
@@ -487,7 +484,7 @@ START RequestId: abc-123-def
 [INFO] Starting export task processing - JobId: test-12345, TaskType: export
 [INFO] Executing export task... JobId: test-12345
 [INFO] Export task completed - JobId: test-12345
-[INFO] Task processing result: Export completed successfully for job: test-12345
+[INFO] Task result: Export completed successfully for job: test-12345
 [INFO] Message processed successfully: xxx-yyy-zzz
 [INFO] Processing completed. Success: 1, Failures: 0
 END RequestId: abc-123-def
@@ -527,12 +524,10 @@ This section describes the modifications needed to integrate DynamoDB status tra
 Add these imports to the top of `ExportHandler.java`:
 
 ```java
-// Step 4: Added DynamoDB imports
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
-
 import java.util.HashMap;
 import java.util.Map;
 ```
@@ -550,10 +545,10 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
     private final ExportService exportService;
     private final ObjectMapper objectMapper;
     
-    // Step 4: Added DynamoDB client and table configuration
     private final DynamoDbClient dynamoDbClient;
-    private static final String TABLE_NAME = "JobTable";
-    private static final String PRIMARY_KEY = "jobId";
+    private static final String TABLE_NAME = System.getenv("DYNAMODB_TABLE_NAME");
+    private static final String PRIMARY_KEY = System.getenv().getOrDefault("PRIMARY_KEY", "jobId");
+    private static final String AWS_REGION = System.getenv().getOrDefault("AWS_REGION", "eu-north-1");
     
     // ... rest of class
 }
@@ -561,8 +556,10 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
 
 **Key Points:**
 - `dynamoDbClient`: Client for connecting to DynamoDB
-- `TABLE_NAME`: Name of the DynamoDB table (must match Step 2)
-- `PRIMARY_KEY`: Primary key field name in DynamoDB table
+- `TABLE_NAME`: Read from environment variable `DYNAMODB_TABLE_NAME`
+- `PRIMARY_KEY`: Read from environment variable with default value "jobId"
+- `AWS_REGION`: Read from environment variable with default value "eu-north-1"
+- **Best Practice:** Using environment variables instead of hardcoded values
 
 ---
 
@@ -571,20 +568,17 @@ public class ExportHandler implements RequestHandler<SQSEvent, String> {
 Replace the existing `ExportHandler()` constructor with:
 
 ```java
-// Constructor for Lambda runtime
 public ExportHandler() {
     this.exportService = new ExportService();
     this.objectMapper = new ObjectMapper();
-    
-    // Step 4: Initialize DynamoDB client
     this.dynamoDbClient = DynamoDbClient.builder()
-            .region(Region.EU_NORTH_1)
+            .region(Region.of(AWS_REGION))
             .build();
 }
 ```
 
 **Key Points:**
-- Initializes DynamoDB client with EU_NORTH_1 region
+- Initializes DynamoDB client with region from environment variable
 - Client is created once per Lambda container (reused across invocations)
 - No credentials needed - Lambda execution role provides authentication
 
@@ -595,10 +589,8 @@ public ExportHandler() {
 public ExportHandler(ExportService exportService) {
     this.exportService = exportService;
     this.objectMapper = new ObjectMapper();
-    
-    // Step 4: Initialize DynamoDB client for testing
     this.dynamoDbClient = DynamoDbClient.builder()
-            .region(Region.EU_NORTH_1)
+            .region(Region.of(AWS_REGION))
             .build();
 }
 ```
@@ -636,7 +628,6 @@ private void processMessage(SQSEvent.SQSMessage message) throws Exception {
     );
     logger.info("Task result: {}", result);
 
-    // Step 4: Update job status to Completed in DynamoDB
     updateJobStatus(jobMessage.getJobId(), "Completed");
 }
 ```
@@ -651,6 +642,168 @@ private void processMessage(SQSEvent.SQSMessage message) throws Exception {
 
 ```java
 @Override
+public String handleRequest(SQSEvent event, Context context) {
+    logger.info("Lambda function started. Request ID: {}", context.getAwsRequestId());
+    logger.info("Received SQS event with {} messages", event.getRecords().size());
+
+    int successCount = 0;
+    int failureCount = 0;
+
+    // Process each SQS message
+    for (SQSEvent.SQSMessage message : event.getRecords()) {
+        try {
+            logger.info("Processing message ID: {}", message.getMessageId());
+            processMessage(message);
+            successCount++;
+            logger.info("Message processed successfully: {}", message.getMessageId());
+
+        } catch (Exception e) {
+            failureCount++;
+            logger.error("Failed to process message ID: {}, Error: {}",
+                    message.getMessageId(), e.getMessage(), e);
+        }
+    }
+
+    String result = String.format("Processing completed. Success: %d, Failures: %d",
+            successCount, failureCount);
+    logger.info(result);
+    return result;
+}
+```
+
+---
+
+## New updateJobStatus Method
+
+Add this new method to the `ExportHandler` class:
+
+```java
+// update job status in DynamoDB
+private void updateJobStatus(String jobId, String status) {
+    logger.info("Updating job {} status to {}", jobId, status);
+    
+    Map<String, AttributeValue> key = new HashMap<>();
+    key.put(PRIMARY_KEY, AttributeValue.builder().s(jobId).build());
+
+    Map<String, AttributeValue> expressionValues = new HashMap<>();
+    expressionValues.put(":status", AttributeValue.builder().s(status).build());
+
+    UpdateItemRequest updateRequest = UpdateItemRequest.builder()
+            .tableName(TABLE_NAME)
+            .key(key)
+            .updateExpression("SET #status = :status")
+            .expressionAttributeNames(Map.of("#status", "status"))
+            .expressionAttributeValues(expressionValues)
+            .build();
+
+    dynamoDbClient.updateItem(updateRequest);
+    logger.info("Job {} status updated successfully.", jobId);
+}
+```
+
+**How it works:**
+1. Creates a key map with the jobId (primary key)
+2. Creates expression values map with the new status
+3. Builds an UpdateItemRequest with:
+   - Table name from environment variable
+   - Primary key to identify the item
+   - Update expression to set status field
+   - Expression attribute names (to avoid reserved word conflicts)
+   - Expression attribute values
+4. Executes the update operation
+5. Logs success
+
+**Key Points:**
+- Uses `#status` as placeholder for field name (DynamoDB reserved word handling)
+- Uses `:status` as placeholder for the value
+- Updates only the `status` field, leaves other fields unchanged
+
+---
+
+## Environment Variables Configuration
+
+After deploying the updated Lambda function, configure these environment variables in AWS Lambda Console:
+
+**Required:**
+- `DYNAMODB_TABLE_NAME` = `JobTable` (or your table name)
+
+**Optional (with defaults):**
+- `AWS_REGION` = `eu-north-1` (default: eu-north-1)
+- `PRIMARY_KEY` = `jobId` (default: jobId)
+
+**Configuration Steps:**
+1. AWS Console → Lambda → ExportLambdaFunction
+2. Configuration → Environment variables → Edit
+3. Add the required variables
+4. Save
+
+---
+
+## Rebuild and Redeploy
+
+After making Step 4 changes:
+
+```bash
+mvn clean package
+```
+
+Upload the new JAR to Lambda, then configure:
+1. Environment variables (as shown above)
+2. IAM permissions (DynamoDB read/write access)
+
+---
+
+## Complete ExportHandler.java (Final Version)
+
+**Complete code with all Step 4 changes:**
+
+```java
+package ie.ul.csis.lambda;
+
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.SQSEvent;
+import ie.ul.csis.lambda.model.ExportJobMessage;
+import ie.ul.csis.lambda.service.ExportService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import java.util.HashMap;
+import java.util.Map;
+
+public class ExportHandler implements RequestHandler<SQSEvent, String> {
+
+    private static final Logger logger = LoggerFactory.getLogger(ExportHandler.class);
+    private final ExportService exportService;
+    private final ObjectMapper objectMapper;
+
+    private final DynamoDbClient dynamoDbClient;
+    private static final String TABLE_NAME = System.getenv("DYNAMODB_TABLE_NAME");
+    private static final String PRIMARY_KEY = System.getenv().getOrDefault("PRIMARY_KEY", "jobId");
+    private static final String AWS_REGION = System.getenv().getOrDefault("AWS_REGION", "eu-north-1");
+
+    public ExportHandler() {
+        this.exportService = new ExportService();
+        this.objectMapper = new ObjectMapper();
+        this.dynamoDbClient = DynamoDbClient.builder()
+                .region(Region.of(AWS_REGION))
+                .build();
+    }
+
+    // Constructor for testing
+    public ExportHandler(ExportService exportService) {
+        this.exportService = exportService;
+        this.objectMapper = new ObjectMapper();
+        this.dynamoDbClient = DynamoDbClient.builder()
+                .region(Region.of(AWS_REGION))
+                .build();
+    }
+
+    @Override
     public String handleRequest(SQSEvent event, Context context) {
         logger.info("Lambda function started. Request ID: {}", context.getAwsRequestId());
         logger.info("Received SQS event with {} messages", event.getRecords().size());
@@ -678,65 +831,56 @@ private void processMessage(SQSEvent.SQSMessage message) throws Exception {
         logger.info(result);
         return result;
     }
-```
 
+    private void processMessage(SQSEvent.SQSMessage message) throws Exception {
+        String messageBody = message.getBody();
+        logger.info("Message body: {}", messageBody);
 
+        // Parse the JSON message into our model object
+        ExportJobMessage jobMessage;
+        try {
+            jobMessage = objectMapper.readValue(messageBody, ExportJobMessage.class);
+            logger.info("Parsed job message: {}", jobMessage);
+        } catch (Exception e) {
+            logger.error("Failed to parse message body as JSON: {}", messageBody);
+            throw new RuntimeException("Invalid message format", e);
+        }
 
----
+        // Validate the message content
+        if (!exportService.validateTaskParameters(jobMessage.getJobId(), jobMessage.getTaskType())) {
+            throw new RuntimeException("Invalid task parameters in message");
+        }
 
-## New updateJobStatus Method
+        // Process the export task
+        String result = exportService.processExportTask(
+                jobMessage.getJobId(),
+                jobMessage.getTaskType()
+        );
+        logger.info("Task result: {}", result);
 
-Add this new method to the `ExportHandler` class:
+        updateJobStatus(jobMessage.getJobId(), "Completed");
+    }
 
-```java
-// Step 4: Method to update job status in DynamoDB
-private void updateJobStatus(String jobId, String status) {
-    logger.info("Updating job {} status to {}", jobId, status);
-    
-    Map<String, AttributeValue> key = new HashMap<>();
-    key.put(PRIMARY_KEY, AttributeValue.builder().s(jobId).build());
+    // update job status in DynamoDB
+    private void updateJobStatus(String jobId, String status) {
+        logger.info("Updating job {} status to {}", jobId, status);
+        
+        Map<String, AttributeValue> key = new HashMap<>();
+        key.put(PRIMARY_KEY, AttributeValue.builder().s(jobId).build());
 
-    Map<String, AttributeValue> expressionValues = new HashMap<>();
-    expressionValues.put(":status", AttributeValue.builder().s(status).build());
+        Map<String, AttributeValue> expressionValues = new HashMap<>();
+        expressionValues.put(":status", AttributeValue.builder().s(status).build());
 
-    UpdateItemRequest updateRequest = UpdateItemRequest.builder()
-            .tableName(TABLE_NAME)
-            .key(key)
-            .updateExpression("SET #status = :status")
-            .expressionAttributeNames(Map.of("#status", "status"))
-            .expressionAttributeValues(expressionValues)
-            .build();
+        UpdateItemRequest updateRequest = UpdateItemRequest.builder()
+                .tableName(TABLE_NAME)
+                .key(key)
+                .updateExpression("SET #status = :status")
+                .expressionAttributeNames(Map.of("#status", "status"))
+                .expressionAttributeValues(expressionValues)
+                .build();
 
-    dynamoDbClient.updateItem(updateRequest);
-    logger.info("Job {} status updated successfully.", jobId);
+        dynamoDbClient.updateItem(updateRequest);
+        logger.info("Job {} status updated successfully.", jobId);
+    }
 }
 ```
-
-**How it works:**
-1. Creates a key map with the jobId (primary key)
-2. Creates expression values map with the new status
-3. Builds an UpdateItemRequest with:
-   - Table name
-   - Primary key to identify the item
-   - Update expression to set status field
-   - Expression attribute names (to avoid reserved word conflicts)
-   - Expression attribute values
-4. Executes the update operation
-5. Logs success
-
-**Key Points:**
-- Uses `#status` as placeholder for field name (DynamoDB reserved word handling)
-- Uses `:status` as placeholder for the value
-- Updates only the `status` field, leaves other fields unchanged
-
----
-
-## Rebuild and Redeploy
-
-After making Step 4 changes:
-
-```bash
-mvn clean package
-```
-
-Upload the new JAR to Lambda, then configure IAM permissions before testing.
